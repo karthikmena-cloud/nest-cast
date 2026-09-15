@@ -43,26 +43,20 @@ function setMessage(s){const e=document.getElementById("msg");if(e)e.textContent
 <header><div><h1>📻 Nest Radio Cast</h1><p class="sub">Connect to a Nest device, then send a station directly to it.</p></div><google-cast-launcher></google-cast-launcher></header>
 
 <section class="panel"><div class="label">Cast status</div><div id="status">Choose a Nest / Cast device</div>
-<div class="label">Play stations on</div>
+<div class="label">Play on</div>
 <div class="mode-row">
 <button class="mode active" type="button" id="targetLocal">This Device</button>
 <button class="mode" type="button" id="targetCast">Nest / Cast</button>
 </div>
-<div class="local-box" id="localBox">
-<div class="label">This device</div>
-<audio id="localPlayer" controls preload="none"></audio>
-<div class="controls" style="margin-top:10px">
-<button class="ctl primary" id="localPause">Pause / Resume Local</button>
-<button class="ctl secondary" id="localStop">Stop Local</button>
+<div class="controls">
+<button class="ctl primary" id="playPause">▶ Play / Pause</button>
+<button class="ctl secondary" id="stop">Stop</button>
 </div>
+<audio id="localPlayer" preload="none" style="display:none"></audio>
+<div class="volume-box" id="castVolumeBox" style="display:none">
+<div class="label">Nest volume</div>
+<div class="volume-row"><span>🔈</span><input id="volume" type="range" min="0" max="1" step=".01" value=".5"><span>🔊</span><span id="volumeValue">50%</span><button class="ctl secondary" id="mute">Mute</button></div>
 </div>
-<div class="volume-box">
-<div class="label">Nest / Cast controls</div>
-<div class="controls" style="margin:8px 0 12px">
-<button class="ctl primary" id="castPause">Pause / Resume Nest</button>
-<button class="ctl secondary" id="castStop">Stop Nest</button>
-</div>
-<div class="label">Nest volume</div><div class="volume-row"><span>🔈</span><input id="volume" type="range" min="0" max="1" step=".01" value=".5"><span>🔊</span><span id="volumeValue">50%</span><button class="ctl secondary" id="mute">Mute</button></div></div>
 <div id="msg"></div></section>
 
 <div id="stations" class="grid"></div>
@@ -148,6 +142,7 @@ function setPlayTarget(target){
  playTarget=target;
  document.getElementById("targetLocal").classList.toggle("active",target==="local");
  document.getElementById("targetCast").classList.toggle("active",target==="cast");
+ document.getElementById("castVolumeBox").style.display=target==="cast"?"block":"none";
  setMessage(target==="local"?"Station buttons will play on this device.":"Station buttons will play on the selected Nest / Cast device.");
 }
 function playSelectedStation(station,button){
@@ -175,19 +170,27 @@ async function castStation(s,btn){
  try{await session.loadMedia(req);activeUrl=s.url;document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));btn.classList.add("active");document.getElementById("status").textContent="Playing "+s.name+" on "+session.getCastDevice().friendlyName;initRemote()}
  catch(e){setMessage("Nest rejected or could not load this stream. Check the URL, stream type, or whether the URL has expired.")}
 }
-document.getElementById("localPause").onclick=()=>{
- if(!localPlayer.currentSrc && !localPlayer.src)return setMessage("Choose a station to play on this device first.");
- if(localPlayer.paused)localPlayer.play().catch(()=>setMessage("Could not resume this stream locally."));
- else localPlayer.pause();
+document.getElementById("playPause").onclick=()=>{
+ if(playTarget==="local"){
+  if(!localPlayer.currentSrc && !localPlayer.src)return setMessage("Choose a station first.");
+  if(localPlayer.paused)localPlayer.play().catch(()=>setMessage("Could not resume this stream locally."));
+  else localPlayer.pause();
+ }else{
+  initRemote();
+  if(remoteController)remoteController.playOrPause();
+  else setMessage("Connect to a Nest / Cast device first.");
+ }
 };
-document.getElementById("localStop").onclick=()=>{
- localPlayer.pause();
- localPlayer.removeAttribute("src");
- localPlayer.load();
- document.getElementById("status").textContent="Local playback stopped";
+document.getElementById("stop").onclick=()=>{
+ if(playTarget==="local"){
+  localPlayer.pause();localPlayer.removeAttribute("src");localPlayer.load();
+  document.getElementById("status").textContent="Local playback stopped";
+ }else{
+  initRemote();
+  if(remoteController)remoteController.stop();
+  else setMessage("Connect to a Nest / Cast device first.");
+ }
 };
-document.getElementById("castPause").onclick=()=>{initRemote();if(remoteController)remoteController.playOrPause();else setMessage("Connect to a Nest / Cast device first.");};
-document.getElementById("castStop").onclick=()=>{initRemote();if(remoteController)remoteController.stop();else setMessage("Connect to a Nest / Cast device first.");};
 document.getElementById("volume").addEventListener("input",e=>{document.getElementById("volumeValue").textContent=Math.round(Number(e.target.value)*100)+"%";clearTimeout(volumeTimer);volumeTimer=setTimeout(()=>{initRemote();if(remoteController){remotePlayer.volumeLevel=Number(e.target.value);remoteController.setVolumeLevel()}},80)});
 document.getElementById("mute").onclick=()=>{initRemote();if(remoteController)remoteController.muteOrUnmute()};
 
@@ -201,8 +204,10 @@ document.getElementById("importFile").addEventListener("change",e=>{
  };r.readAsText(f);
 });
 document.getElementById("resetBtn").onclick=()=>{if(confirm("Replace your saved station list with the original defaults?")){stations=JSON.parse(JSON.stringify(DEFAULT_STATIONS));saveStations();renderStations();manageMessage("Default stations restored.")}};
-document.getElementById("targetLocal").onclick=()=>setPlayTarget("local");
-document.getElementById("targetCast").onclick=()=>setPlayTarget("cast");
+localPlayer.addEventListener("play",()=>{if(playTarget==="local")document.getElementById("playPause").textContent="⏸ Pause";});
+localPlayer.addEventListener("pause",()=>{if(playTarget==="local")document.getElementById("playPause").textContent="▶ Play";});
+document.getElementById("targetLocal").onclick=()=>{setPlayTarget("local");document.getElementById("playPause").textContent=localPlayer.paused?"▶ Play":"⏸ Pause";};
+document.getElementById("targetCast").onclick=()=>{setPlayTarget("cast");document.getElementById("playPause").textContent="▶ Play / Pause";};
 setPlayTarget("local");
 renderStations();
 </script>
