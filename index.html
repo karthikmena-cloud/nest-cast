@@ -10,7 +10,7 @@ h1{margin:0;font-size:2rem} .sub{color:#aeb3bd;margin:7px 0 22px;line-height:1.5
 google-cast-launcher{width:48px;height:48px;--disconnected-color:#fff;--connected-color:#fff}
 .panel{background:#1b1d22;border:1px solid #343740;border-radius:18px;padding:18px;margin-bottom:20px}
 .label{font-size:.75rem;color:#999;text-transform:uppercase;letter-spacing:.12em} #status{font-weight:750;font-size:1.15rem;margin:6px 0 13px}
-.controls{display:flex;gap:10px;flex-wrap:wrap} .ctl{border:0;border-radius:999px;padding:10px 17px;font-weight:700;cursor:pointer}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.volume-box{margin-top:16px;padding-top:15px;border-top:1px solid #343740}.volume-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}#volume{width:min(360px,70vw)}#volumeValue{min-width:42px;font-weight:700} .ctl{border:0;border-radius:999px;padding:10px 17px;font-weight:700;cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px}
 .station{display:flex;align-items:center;gap:13px;text-align:left;padding:15px;border:1px solid #343740;border-radius:15px;background:#1a1c21;color:#fff;cursor:pointer}
 .station:hover{background:#252831} .station.active{outline:2px solid #e7e7e7}
@@ -46,7 +46,7 @@ function setMessage(s) { const e=document.getElementById("msg"); if(e)e.textCont
 <body><main>
 <header><div><h1>📻 Nest Radio Cast</h1><p class="sub">Connect to a Nest device, then send a station directly to it.</p></div><google-cast-launcher></google-cast-launcher></header>
 <section class="panel"><div class="label">Cast status</div><div id="status">Choose a Nest / Cast device</div>
-<div class="controls"><button class="ctl" id="pause">Pause / Resume</button><button class="ctl" id="stop">Stop</button></div><div id="msg"></div></section>
+<div class="controls"><button class="ctl" id="pause">Pause / Resume</button><button class="ctl" id="stop">Stop</button></div><div class="volume-box"><div class="label">Nest volume</div><div class="volume-row"><span>🔈</span><input id="volume" type="range" min="0" max="1" step="0.01" value="0.50"><span>🔊</span><span id="volumeValue">50%</span><button class="ctl" id="mute">Mute</button></div></div><div id="msg"></div></section>
 <div class="grid"><button class="station" data-name="Hello FM 106.4 Chennai" data-location="Chennai, India"
 data-url="https://private-stream.ignorelist.com/s?u=http%3A%2F%2Fradios.crabdance.com%3A8002%2F3&amp;sig=7c8de3713f6accac5074c69928669f592543317390252acf42f151743f0faf17" data-type="audio/mpeg">
 <span class="icon">▶</span><span><b>Hello FM 106.4 Chennai</b><small>Chennai, India</small></span></button>
@@ -83,8 +83,14 @@ function initRemote() {
   if (!remotePlayer) {
     remotePlayer = new cast.framework.RemotePlayer();
     remoteController = new cast.framework.RemotePlayerController(remotePlayer);
+    const syncVolume=()=>{document.getElementById("volume").value=remotePlayer.volumeLevel;document.getElementById("volumeValue").textContent=Math.round(remotePlayer.volumeLevel*100)+"%";document.getElementById("mute").textContent=remotePlayer.isMuted?"Unmute":"Mute";};
+    remoteController.addEventListener(cast.framework.RemotePlayerEventType.VOLUME_LEVEL_CHANGED,syncVolume);
+    remoteController.addEventListener(cast.framework.RemotePlayerEventType.IS_MUTED_CHANGED,syncVolume);
+    syncVolume();
   }
 }
+function setNestVolume(v){initRemote();if(!remoteController)return setMessage("Connect to a Nest / Cast device first.");remotePlayer.volumeLevel=Number(v);remoteController.setVolumeLevel();}
+function toggleNestMute(){initRemote();if(!remoteController)return setMessage("Connect to a Nest / Cast device first.");remoteController.muteOrUnmute();}
 async function sendStation(btn) {
   setMessage("");
   const ctx = cast.framework.CastContext.getInstance();
@@ -115,4 +121,7 @@ async function sendStation(btn) {
 document.querySelectorAll(".station").forEach(b=>b.addEventListener("click",()=>sendStation(b)));
 document.getElementById("pause").onclick=()=>{initRemote(); if(remoteController) remoteController.playOrPause();};
 document.getElementById("stop").onclick=()=>{initRemote(); if(remoteController) remoteController.stop();};
+let volumeTimer;
+document.getElementById("volume").addEventListener("input",e=>{document.getElementById("volumeValue").textContent=Math.round(Number(e.target.value)*100)+"%";clearTimeout(volumeTimer);volumeTimer=setTimeout(()=>setNestVolume(e.target.value),80);});
+document.getElementById("mute").onclick=toggleNestMute;
 </script></body></html>
