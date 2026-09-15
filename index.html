@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nest Radio Cast</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#101114;color:#f4f5f7;font-family:system-ui,-apple-system,sans-serif}
+main{max-width:850px;margin:auto;padding:28px 18px 60px} header{display:flex;justify-content:space-between;align-items:center;gap:18px}
+h1{margin:0;font-size:2rem} .sub{color:#aeb3bd;margin:7px 0 22px;line-height:1.5}
+google-cast-launcher{width:48px;height:48px;--disconnected-color:#fff;--connected-color:#fff}
+.panel{background:#1b1d22;border:1px solid #343740;border-radius:18px;padding:18px;margin-bottom:20px}
+.label{font-size:.75rem;color:#999;text-transform:uppercase;letter-spacing:.12em} #status{font-weight:750;font-size:1.15rem;margin:6px 0 13px}
+.controls{display:flex;gap:10px;flex-wrap:wrap} .ctl{border:0;border-radius:999px;padding:10px 17px;font-weight:700;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px}
+.station{display:flex;align-items:center;gap:13px;text-align:left;padding:15px;border:1px solid #343740;border-radius:15px;background:#1a1c21;color:#fff;cursor:pointer}
+.station:hover{background:#252831} .station.active{outline:2px solid #e7e7e7}
+.icon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#f2f2f2;color:#111;flex:none}
+.station b,.station small{display:block} .station small{color:#9da3ae;margin-top:4px}
+#msg{color:#ffc0b8;min-height:1.4em;margin-top:11px;font-size:.9rem}
+.note{color:#aeb3bd;line-height:1.55;font-size:.92rem;margin-top:22px}
+code{background:#252831;padding:2px 5px;border-radius:5px}
+</style>
+<script>
+window.__onGCastApiAvailable = function(isAvailable) {
+  if (!isAvailable) return setMessage("Google Cast API is not available in this browser.");
+  cast.framework.CastContext.getInstance().setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+  });
+  const context = cast.framework.CastContext.getInstance();
+  context.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, e => {
+    if (e.sessionState === cast.framework.SessionState.SESSION_STARTED ||
+        e.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
+      const d = context.getCurrentSession().getCastDevice();
+      document.getElementById("status").textContent = "Connected to " + d.friendlyName;
+      setMessage("");
+    }
+    if (e.sessionState === cast.framework.SessionState.SESSION_ENDED)
+      document.getElementById("status").textContent = "Choose a Nest / Cast device";
+  });
+};
+function setMessage(s) { const e=document.getElementById("msg"); if(e)e.textContent=s; }
+</script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+</head>
+<body><main>
+<header><div><h1>📻 Nest Radio Cast</h1><p class="sub">Connect to a Nest device, then send a station directly to it.</p></div><google-cast-launcher></google-cast-launcher></header>
+<section class="panel"><div class="label">Cast status</div><div id="status">Choose a Nest / Cast device</div>
+<div class="controls"><button class="ctl" id="pause">Pause / Resume</button><button class="ctl" id="stop">Stop</button></div><div id="msg"></div></section>
+<div class="grid"><button class="station" data-name="Hello FM 106.4 Chennai" data-location="Chennai, India"
+data-url="https://private-stream.ignorelist.com/s?u=http%3A%2F%2Fradios.crabdance.com%3A8002%2F3&amp;sig=7c8de3713f6accac5074c69928669f592543317390252acf42f151743f0faf17" data-type="audio/mpeg">
+<span class="icon">▶</span><span><b>Hello FM 106.4 Chennai</b><small>Chennai, India</small></span></button>
+<button class="station" data-name="Big FM 92.7" data-location="India"
+data-url="https://private-stream.ignorelist.com/s?u=http%3A%2F%2Fradios.crabdance.com%3A8002%2F4&amp;sig=3b82af06c3ac2bff4f7a186fa611b3aa00dc5b5c5f07a524f27d47dea4f5ca7a" data-type="audio/mpeg">
+<span class="icon">▶</span><span><b>Big FM 92.7</b><small>India</small></span></button>
+<button class="station" data-name="Oli 96.8 FM Singapore" data-location="Singapore"
+data-url="https://28383.live.streamtheworld.com/OLI968FMAAC.aac?dist=liveonlineradio" data-type="audio/aac">
+<span class="icon">▶</span><span><b>Oli 96.8 FM Singapore</b><small>Singapore</small></span></button>
+<button class="station" data-name="Radio Mirchi 98.3 FM" data-location="India"
+data-url="https://private-stream.ignorelist.com/s?u=http%3A%2F%2Fradios.crabdance.com%3A8002%2F1&amp;sig=2410523a8530335a51397de03d9ab5bd4d09b99975d3430fa3b010a621a2dfda" data-type="audio/mpeg">
+<span class="icon">▶</span><span><b>Radio Mirchi 98.3 FM</b><small>India</small></span></button>
+<button class="station" data-name="Suryan FM 93.5" data-location="Tamil Nadu, India"
+data-url="https://private-stream.ignorelist.com/s?u=http%3A%2F%2Fradios.crabdance.com%3A8002%2F2&amp;sig=94627c05d4865f0b7758bf5cfc6348ce5979c41c7a4606abb79e83ead54a476a" data-type="audio/mpeg">
+<span class="icon">▶</span><span><b>Suryan FM 93.5</b><small>Tamil Nadu, India</small></span></button>
+<button class="station" data-name="Kodai FM 100.5" data-location="Kodaikanal, India"
+data-url="https://air.pc.cdn.bitgravity.com/air/live/pbaudio051/chunklist.m3u8" data-type="application/x-mpegURL">
+<span class="icon">▶</span><span><b>Kodai FM 100.5</b><small>Kodaikanal, India</small></span></button>
+<button class="station" data-name="99.5 The Wolf" data-location="Texas, USA"
+data-url="https://29318.live.streamtheworld.com/KPLXFMAAC/HLS/bb458ffb-377c-4a54-920e-c4a9699c4069/0/playlist.m3u8" data-type="application/x-mpegURL">
+<span class="icon">▶</span><span><b>99.5 The Wolf</b><small>Texas, USA</small></span></button>
+<button class="station" data-name="KIIS FM 102.7" data-location="Los Angeles, USA"
+data-url="https://n45b-e2.revma.ihrhls.com/zc185/69_15nc8nxwquho402/playlist.m3u8?streamid=185&amp;zip=&amp;aw_0_1st.playerid=iHeartRadioWebPlayer&amp;aw_0_1st.skey=13084277765&amp;clientType=web&amp;companionAds=false&amp;deviceName=web-mobile&amp;dist=iheart&amp;host=webapp.US&amp;listenerId=&amp;playedFrom=157&amp;pname=live_profile&amp;profileId=13084277765&amp;stationid=185&amp;terminalId=159&amp;territory=US&amp;us_privacy=1-N-" data-type="application/x-mpegURL">
+<span class="icon">▶</span><span><b>KIIS FM 102.7</b><small>Los Angeles, USA</small></span></button>
+<button class="station" data-name="WNYC 93.9" data-location="New York, USA"
+data-url="https://hls-live.wnyc.org/wnycfmapp-hls.aac/playlist.m3u8?listeningSessionID=66a2075c6f9666cc_67542691_shqXQIDU_MTAuMjIuNDUuMTMxOjgwMDA!_0000000Z5rL&amp;downloadSessionID=0&amp;listenerid=0&amp;aw_0_1st.lmt=0&amp;aw_0_1st.userid=0&amp;device=web" data-type="application/x-mpegURL">
+<span class="icon">▶</span><span><b>WNYC 93.9</b><small>New York, USA</small></span></button></div>
+<p class="note"><b>Important:</b> this is a true Cast sender: after a successful media load, the receiver fetches the public stream URL itself. The sender page does not relay the audio. For reliable Cast discovery, serve this page from an HTTP/HTTPS web server rather than opening it as <code>file://</code>. Streams with expiring/session-specific URLs may need periodic replacement.</p>
+</main>
+<script>
+let remotePlayer, remoteController;
+function initRemote() {
+  if (!window.cast || !cast.framework) return;
+  if (!remotePlayer) {
+    remotePlayer = new cast.framework.RemotePlayer();
+    remoteController = new cast.framework.RemotePlayerController(remotePlayer);
+  }
+}
+async function sendStation(btn) {
+  setMessage("");
+  const ctx = cast.framework.CastContext.getInstance();
+  let session = ctx.getCurrentSession();
+  if (!session) {
+    try { await ctx.requestSession(); session = ctx.getCurrentSession(); }
+    catch(e) { return setMessage("No Cast device selected."); }
+  }
+  const info = new chrome.cast.media.MediaInfo(btn.dataset.url, btn.dataset.type);
+  info.streamType = chrome.cast.media.StreamType.LIVE;
+  const meta = new chrome.cast.media.MusicTrackMediaMetadata();
+  meta.title = btn.dataset.name;
+  meta.artist = btn.dataset.location;
+  info.metadata = meta;
+  const req = new chrome.cast.media.LoadRequest(info);
+  req.autoplay = true;
+  req.currentTime = 0;
+  try {
+    await session.loadMedia(req);
+    document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("status").textContent = "Playing " + btn.dataset.name + " on " + session.getCastDevice().friendlyName;
+    initRemote();
+  } catch(e) {
+    setMessage("Nest rejected or could not load this stream. The URL may be expired, blocked, or use a codec/playlist the Default Media Receiver cannot play.");
+  }
+}
+document.querySelectorAll(".station").forEach(b=>b.addEventListener("click",()=>sendStation(b)));
+document.getElementById("pause").onclick=()=>{initRemote(); if(remoteController) remoteController.playOrPause();};
+document.getElementById("stop").onclick=()=>{initRemote(); if(remoteController) remoteController.stop();};
+</script></body></html>
