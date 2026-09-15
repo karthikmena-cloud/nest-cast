@@ -43,17 +43,26 @@ function setMessage(s){const e=document.getElementById("msg");if(e)e.textContent
 <header><div><h1>📻 Nest Radio Cast</h1><p class="sub">Connect to a Nest device, then send a station directly to it.</p></div><google-cast-launcher></google-cast-launcher></header>
 
 <section class="panel"><div class="label">Cast status</div><div id="status">Choose a Nest / Cast device</div>
-<div class="label">Playback destination</div>
+<div class="label">Play stations on</div>
 <div class="mode-row">
-<button class="mode active" type="button" id="modeLocal">This Device</button>
-<button class="mode" type="button" id="modeCast">Nest / Cast</button>
+<button class="mode active" type="button" id="targetLocal">This Device</button>
+<button class="mode" type="button" id="targetCast">Nest / Cast</button>
 </div>
-<div class="controls"><button class="ctl primary" id="pause">Pause / Resume</button><button class="ctl secondary" id="stop">Stop</button></div>
 <div class="local-box" id="localBox">
-<div class="label">Local player</div>
+<div class="label">This device</div>
 <audio id="localPlayer" controls preload="none"></audio>
+<div class="controls" style="margin-top:10px">
+<button class="ctl primary" id="localPause">Pause / Resume Local</button>
+<button class="ctl secondary" id="localStop">Stop Local</button>
 </div>
-<div class="volume-box"><div class="label">Nest volume</div><div class="volume-row"><span>🔈</span><input id="volume" type="range" min="0" max="1" step=".01" value=".5"><span>🔊</span><span id="volumeValue">50%</span><button class="ctl secondary" id="mute">Mute</button></div></div>
+</div>
+<div class="volume-box">
+<div class="label">Nest / Cast controls</div>
+<div class="controls" style="margin:8px 0 12px">
+<button class="ctl primary" id="castPause">Pause / Resume Nest</button>
+<button class="ctl secondary" id="castStop">Stop Nest</button>
+</div>
+<div class="label">Nest volume</div><div class="volume-row"><span>🔈</span><input id="volume" type="range" min="0" max="1" step=".01" value=".5"><span>🔊</span><span id="volumeValue">50%</span><button class="ctl secondary" id="mute">Mute</button></div></div>
 <div id="msg"></div></section>
 
 <div id="stations" class="grid"></div>
@@ -86,16 +95,20 @@ const DEFAULT_STATIONS=[{"name": "Hello FM 106.4 Chennai", "location": "Chennai,
 const KEY="nestRadioStationsV1";
 let stations;
 try{stations=JSON.parse(localStorage.getItem(KEY))||DEFAULT_STATIONS}catch(e){stations=DEFAULT_STATIONS}
-let activeUrl="",remotePlayer,remoteController,volumeTimer,playMode="local";const localPlayer=document.getElementById("localPlayer");
+let activeUrl="",remotePlayer,remoteController,volumeTimer,playTarget="local";const localPlayer=document.getElementById("localPlayer");
 
 function saveStations(){localStorage.setItem(KEY,JSON.stringify(stations))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function renderStations(){
  const box=document.getElementById("stations");box.innerHTML="";
  stations.forEach((s,i)=>{
-  const b=document.createElement("button");b.className="station"+(s.url===activeUrl?" active":"");b.type="button";
+  const b=document.createElement("div");b.className="station"+(s.url===activeUrl?" active":"");
   b.innerHTML='<span class="icon">▶</span><span><b>'+esc(s.name)+'</b><small>'+esc(s.location||"")+'</small></span>';
-  b.addEventListener("click",()=>sendStation(s,b));box.appendChild(b);
+  b.style.cursor="pointer";
+  b.setAttribute("role","button");b.tabIndex=0;
+  b.addEventListener("click",()=>playSelectedStation(s,b));
+  b.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();playSelectedStation(s,b)}});
+  box.appendChild(b);
  });renderManager()
 }
 function renderManager(){
@@ -131,13 +144,15 @@ function initRemote(){
   remoteController.addEventListener(cast.framework.RemotePlayerEventType.VOLUME_LEVEL_CHANGED,sync);remoteController.addEventListener(cast.framework.RemotePlayerEventType.IS_MUTED_CHANGED,sync);sync();
  }
 }
-function setPlayMode(mode){
- playMode=mode;
- document.getElementById("modeLocal").classList.toggle("active",mode==="local");
- document.getElementById("modeCast").classList.toggle("active",mode==="cast");
- document.getElementById("localBox").style.display=mode==="local"?"block":"none";
- document.querySelector(".volume-box").style.display=mode==="cast"?"block":"none";
- setMessage(mode==="local"?"Stations will play on this device.":"Stations will be sent to the selected Nest / Cast device.");
+function setPlayTarget(target){
+ playTarget=target;
+ document.getElementById("targetLocal").classList.toggle("active",target==="local");
+ document.getElementById("targetCast").classList.toggle("active",target==="cast");
+ setMessage(target==="local"?"Station buttons will play on this device.":"Station buttons will play on the selected Nest / Cast device.");
+}
+function playSelectedStation(station,button){
+ if(playTarget==="cast") castStation(station,button);
+ else playLocal(station,button);
 }
 async function playLocal(s,btn){
  setMessage("");
@@ -146,13 +161,12 @@ async function playLocal(s,btn){
  try{
   await localPlayer.play();activeUrl=s.url;
   document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));btn.classList.add("active");
-  document.getElementById("status").textContent="Playing "+s.name+" on this device";
+  document.getElementById("status").textContent="Playing locally: "+s.name;
  }catch(e){
   setMessage("This browser could not play the stream locally. HLS (.m3u8) support varies by browser; try Cast mode or another stream URL.");
  }
 }
-async function sendStation(s,btn){
- if(playMode==="local")return playLocal(s,btn);
+async function castStation(s,btn){
  setMessage("");const ctx=cast.framework.CastContext.getInstance();let session=ctx.getCurrentSession();
  if(!session){try{await ctx.requestSession();session=ctx.getCurrentSession()}catch(e){return setMessage("No Cast device selected.")}}
  const info=new chrome.cast.media.MediaInfo(s.url,s.type);info.streamType=chrome.cast.media.StreamType.LIVE;
@@ -161,16 +175,19 @@ async function sendStation(s,btn){
  try{await session.loadMedia(req);activeUrl=s.url;document.querySelectorAll(".station").forEach(x=>x.classList.remove("active"));btn.classList.add("active");document.getElementById("status").textContent="Playing "+s.name+" on "+session.getCastDevice().friendlyName;initRemote()}
  catch(e){setMessage("Nest rejected or could not load this stream. Check the URL, stream type, or whether the URL has expired.")}
 }
-document.getElementById("pause").onclick=()=>{
- if(playMode==="local"){
-  if(!localPlayer.src)return;
-  if(localPlayer.paused)localPlayer.play().catch(()=>setMessage("Could not resume this stream locally."));else localPlayer.pause();
- }else{initRemote();if(remoteController)remoteController.playOrPause()}
+document.getElementById("localPause").onclick=()=>{
+ if(!localPlayer.currentSrc && !localPlayer.src)return setMessage("Choose a station to play on this device first.");
+ if(localPlayer.paused)localPlayer.play().catch(()=>setMessage("Could not resume this stream locally."));
+ else localPlayer.pause();
 };
-document.getElementById("stop").onclick=()=>{
- if(playMode==="local"){localPlayer.pause();localPlayer.removeAttribute("src");localPlayer.load();document.getElementById("status").textContent="Local playback stopped";}
- else{initRemote();if(remoteController)remoteController.stop()}
+document.getElementById("localStop").onclick=()=>{
+ localPlayer.pause();
+ localPlayer.removeAttribute("src");
+ localPlayer.load();
+ document.getElementById("status").textContent="Local playback stopped";
 };
+document.getElementById("castPause").onclick=()=>{initRemote();if(remoteController)remoteController.playOrPause();else setMessage("Connect to a Nest / Cast device first.");};
+document.getElementById("castStop").onclick=()=>{initRemote();if(remoteController)remoteController.stop();else setMessage("Connect to a Nest / Cast device first.");};
 document.getElementById("volume").addEventListener("input",e=>{document.getElementById("volumeValue").textContent=Math.round(Number(e.target.value)*100)+"%";clearTimeout(volumeTimer);volumeTimer=setTimeout(()=>{initRemote();if(remoteController){remotePlayer.volumeLevel=Number(e.target.value);remoteController.setVolumeLevel()}},80)});
 document.getElementById("mute").onclick=()=>{initRemote();if(remoteController)remoteController.muteOrUnmute()};
 
@@ -184,9 +201,9 @@ document.getElementById("importFile").addEventListener("change",e=>{
  };r.readAsText(f);
 });
 document.getElementById("resetBtn").onclick=()=>{if(confirm("Replace your saved station list with the original defaults?")){stations=JSON.parse(JSON.stringify(DEFAULT_STATIONS));saveStations();renderStations();manageMessage("Default stations restored.")}};
-document.getElementById("modeLocal").onclick=()=>setPlayMode("local");
-document.getElementById("modeCast").onclick=()=>setPlayMode("cast");
-setPlayMode("local");
+document.getElementById("targetLocal").onclick=()=>setPlayTarget("local");
+document.getElementById("targetCast").onclick=()=>setPlayTarget("cast");
+setPlayTarget("local");
 renderStations();
 </script>
 </body></html>
